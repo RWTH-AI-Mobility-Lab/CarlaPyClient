@@ -1,4 +1,4 @@
-from PySide6.QtWidgets import QWidget, QLabel, QVBoxLayout
+from PySide6.QtWidgets import QWidget, QLabel, QGridLayout
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QImage, QPixmap
 import numpy as np
@@ -8,23 +8,39 @@ class CentralView(QWidget):
     def __init__(self):
         super().__init__()
 
-        self.label = QLabel("Camera View\n(Waiting for connection...)")
-        self.label.setAlignment(Qt.AlignCenter)
-        self.label.setStyleSheet(
-            "background-color: #222; color: #ddd; font-size: 20px;"
-        )
-        self.label.setMinimumSize(800, 600)
+        self.front_label = self._create_camera_label("前摄像头\n(等待连接...)")
+        self.rear_label = self._create_camera_label("后摄像头\n(等待连接...)")
+        self.left_label = self._create_camera_label("左摄像头\n(等待连接...)")
+        self.right_label = self._create_camera_label("右摄像头\n(等待连接...)")
 
-        layout = QVBoxLayout()
+        layout = QGridLayout()
         layout.setContentsMargins(0, 0, 0, 0)
-        layout.addWidget(self.label)
+        layout.setSpacing(2)  # 设置间距
+
+        # front, rear, left, right
+        layout.addWidget(self.front_label, 0, 0)
+        layout.addWidget(self.rear_label, 0, 1)
+        layout.addWidget(self.left_label, 1, 0)
+        layout.addWidget(self.right_label, 1, 1)
+
         self.setLayout(layout)
 
-    def update_camera_image(self, image_bgr: np.ndarray):
-        """更新摄像头图像
+    def _create_camera_label(self, text: str) -> QLabel:
+        label = QLabel(text)
+        label.setAlignment(Qt.AlignCenter)
+        label.setStyleSheet(
+            "background-color: #222; color: #ddd; font-size: 16px; border: 1px solid #444;"
+        )
+        label.setMinimumSize(400, 300)
+        label.setScaledContents(False)
+        return label
+
+    def _update_camera_image(self, label: QLabel, image_bgr: np.ndarray):
+        """通用的摄像头图像更新方法
 
         Args:
-            image_rgb: BGR 格式的图像数据 (numpy array)
+            label: 要更新的QLabel
+            image_bgr: BGR 格式的图像数据 (numpy array)
         """
         try:
             if not image_bgr.flags['C_CONTIGUOUS']:
@@ -46,19 +62,37 @@ class CentralView(QWidget):
 
             pixmap = QPixmap.fromImage(q_image)
             scaled_pixmap = pixmap.scaled(
-                self.label.size(),
+                label.size(),
                 Qt.KeepAspectRatio,
                 Qt.SmoothTransformation
             )
 
-            self.label.setPixmap(scaled_pixmap)
+            label.setPixmap(scaled_pixmap)
 
         except Exception as e:
             print(f"Error updating camera image: {e}")
 
+    def update_front_camera_image(self, image_bgr: np.ndarray):
+        self._update_camera_image(self.front_label, image_bgr)
+
+    def update_rear_camera_image(self, image_bgr: np.ndarray):
+        self._update_camera_image(self.rear_label, image_bgr)
+
+    def update_left_camera_image(self, image_bgr: np.ndarray):
+        self._update_camera_image(self.left_label, image_bgr)
+
+    def update_right_camera_image(self, image_bgr: np.ndarray):
+        self._update_camera_image(self.right_label, image_bgr)
+
     def show_placeholder(self, message: str = "Camera View\n(Waiting for connection...)"):
-        self.label.clear()
-        self.label.setText(message)
+        self.front_label.clear()
+        self.front_label.setText(f"前摄像头\n{message}")
+        self.rear_label.clear()
+        self.rear_label.setText(f"后摄像头\n{message}")
+        self.left_label.clear()
+        self.left_label.setText(f"左摄像头\n{message}")
+        self.right_label.clear()
+        self.right_label.setText(f"右摄像头\n{message}")
 
     def create_status_placeholder(self):
         label = QLabel("Simulation Status\nROS: OFF\nFPS: --")

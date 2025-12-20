@@ -15,11 +15,9 @@ class ControlPanel(QWidget):
 
         layout = QVBoxLayout()
 
-        # 连接配置组
         connection_group = self._create_connection_group()
         layout.addWidget(connection_group)
 
-        # 仿真控制组
         simulation_group = self._create_simulation_group()
         layout.addWidget(simulation_group)
 
@@ -27,11 +25,9 @@ class ControlPanel(QWidget):
         self.setLayout(layout)
 
     def _create_connection_group(self):
-        """创建连接配置组"""
         group = QGroupBox("CARLA Connection")
         layout = QVBoxLayout()
 
-        # IP 地址输入
         ip_layout = QHBoxLayout()
         ip_layout.addWidget(QLabel("Host:"))
         self.host_input = QLineEdit("localhost")
@@ -39,7 +35,6 @@ class ControlPanel(QWidget):
         ip_layout.addWidget(self.host_input)
         layout.addLayout(ip_layout)
 
-        # 端口输入
         port_layout = QHBoxLayout()
         port_layout.addWidget(QLabel("Port:"))
         self.port_input = QLineEdit("2000")
@@ -49,7 +44,6 @@ class ControlPanel(QWidget):
         port_layout.addStretch()
         layout.addLayout(port_layout)
 
-        # 连接/断开按钮
         btn_layout = QHBoxLayout()
         self.connect_btn = QPushButton("🔌 Connect")
         self.disconnect_btn = QPushButton("⏏ Disconnect")
@@ -61,7 +55,6 @@ class ControlPanel(QWidget):
         return group
 
     def _create_simulation_group(self):
-        """创建仿真控制组"""
         group = QGroupBox("Simulation Control")
         layout = QVBoxLayout()
 

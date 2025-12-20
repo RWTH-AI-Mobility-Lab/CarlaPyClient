@@ -16,7 +16,6 @@ class MainWindow(QMainWindow):
         super().__init__()
         self.setWindowTitle("CARLA Bicycle Simulator")
 
-        # 初始化 CARLA 客户端管理器（不立即连接）
         self.carla_manager = None
 
         self._create_central_view()
@@ -133,21 +132,20 @@ class MainWindow(QMainWindow):
 
     def _on_camera_image_ready(self, image_rgb):
         """处理摄像头图像更新"""
-        self.central_view.update_camera_image(image_rgb)
+        self.central_view.update_front_camera_image(image_rgb)
 
     def _on_simulation_error(self, error_message: str):
         """处理仿真错误"""
         self.statusBar().showMessage(f"Error: {error_message}")
 
     def _on_start_simulation(self):
-        """开始仿真按钮点击事件"""
         if self.carla_manager is None:
             QMessageBox.warning(self, "Not Connected", "Please connect to CARLA server first.")
             return
 
         self.statusBar().showMessage("Starting simulation...")
 
-        success = self.carla_manager.start_simulation()
+        success = self.carla_manager.start_simulation(vehicle_blueprint="vehicle.bh.crossbike")
 
         if success:
             self.statusBar().showMessage("Simulation started")

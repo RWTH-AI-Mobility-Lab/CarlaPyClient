@@ -3,7 +3,7 @@ import numpy as np
 import cv2 as cv
 from typing import Optional, Callable
 from PySide6.QtCore import QObject, Signal, QThread
-
+from carla_bike_sim.carla.utils import carla_image_to_bgr
 
 class CarlaClientManager(QObject):
     """CARLA 客户端管理器类
@@ -27,8 +27,12 @@ class CarlaClientManager(QObject):
         self.client: Optional[carla.Client] = None
         self.world: Optional[carla.World] = None
         self.vehicle: Optional[carla.Vehicle] = None
-        self.camera: Optional[carla.Sensor] = None
         self.spectator: Optional[carla.Actor] = None
+        
+        self.front_camera: Optional[carla.Sensor] = None
+        self.rear_camera: Optional[carla.Sensor] = None
+        self.left_camera: Optional[carla.Sensor] = None
+        self.right_camera: Optional[carla.Sensor] = None
 
         self._is_connected = False
         self._is_running = False
@@ -62,13 +66,12 @@ class CarlaClientManager(QObject):
             return False
 
     def disconnect(self):
-        """断开与 CARLA 服务器的连接并清理资源"""
         self.stop_simulation()
 
-        if self.camera is not None:
-            self.camera.stop()
-            self.camera.destroy()
-            self.camera = None
+        if self.front_camera is not None:
+            self.front_camera.stop()
+            self.front_camera.destroy()
+            self.front_camera = None
 
         if self.vehicle is not None:
             self.vehicle.destroy()
@@ -113,7 +116,7 @@ class CarlaClientManager(QObject):
             vehicle_control.throttle = 0.5
             self.vehicle.apply_control(vehicle_control)
 
-            self._setup_camera(camera_width, camera_height)
+            self.setup_camera(camera_width, camera_height)
 
             self.simulation_thread = SimulationThread(self.world)
             self.simulation_thread.start()
@@ -132,12 +135,12 @@ class CarlaClientManager(QObject):
             self.simulation_thread.wait()
             self.simulation_thread = None
 
-        if self.camera is not None:
-            self.camera.stop()
+        if self.front_camera is not None:
+            self.front_camera.stop()
 
         self._is_running = False
 
-    def _setup_camera(self, width: int, height: int):
+    def setup_camera(self, width: int, height: int):
         camera_bp = self.world.get_blueprint_library().find("sensor.camera.rgb")
         camera_bp.set_attribute("image_size_x", str(width))
         camera_bp.set_attribute("image_size_y", str(height))
@@ -147,28 +150,17 @@ class CarlaClientManager(QObject):
             carla.Rotation(pitch=-15.0)
         )
 
-        self.camera = self.world.spawn_actor(
+        self.front_camera = self.world.spawn_actor(
             camera_bp,
             camera_transform,
             attach_to=self.vehicle
         )
 
-        self.camera.listen(self._camera_callback)
+        self.front_camera.listen(self.front_camera_callback)
 
-    def _camera_callback(self, image: carla.Image):
-        """摄像头图像回调函数
-
-        Args:
-            image: CARLA 图像对象
-        """
+    def front_camera_callback(self, image: carla.Image):
         try:
-            # 处理图像数据
-            img_array = np.frombuffer(image.raw_data, dtype=np.uint8)
-            img_array = img_array.reshape((image.height, image.width, 4))
-            img_bgr = img_array[:, :, :3]  # 只取 BGR 通道
-
-            # 发送信号（注意：这里是 BGR 格式，GUI 中需要转换为 Qt 格式）
-            self.camera_image_ready.emit(img_bgr)
+            self.camera_image_ready.emit(carla_image_to_bgr(image))
 
         except Exception as e:
             self.simulation_error.emit(f"Camera callback error: {str(e)}")
@@ -178,10 +170,10 @@ class CarlaClientManager(QObject):
         """设置车辆完整控制
 
         Args:
-            throttle: 油门 (0.0 到 1.0)
-            steer: 转向 (-1.0 到 1.0)
-            brake: 刹车 (0.0 到 1.0)
-            hand_brake: 手刹
+            throttle:(0.0 to 1.0)
+            steer: (-1.0 to 1.0)
+            brake: (0.0 to 1.0)
+            hand_brake
         """
         if self.vehicle is not None:
             control = carla.VehicleControl()
