@@ -11,3 +11,7 @@ Install requirements:
 ## Run
 
 `uv run python .\scripts\run_dev.py`
+
+or
+
+press `F5` to start debug

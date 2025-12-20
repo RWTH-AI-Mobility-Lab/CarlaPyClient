@@ -1,16 +1,15 @@
 import carla
 import numpy as np
 import cv2 as cv
-from typing import Optional, Callable
-from PySide6.QtCore import QObject, Signal, QThread
-from carla_bike_sim.carla.sonsors import SensorManager
+from typing import Optional
+from PySide6.QtCore import QObject, Signal
+from carla_bike_sim.carla.sensors import SensorManager
 
 class CarlaClientManager(QObject):
-    """CARLA 客户端管理器类
+    """CARLA 客户端管理器
 
     Signals:
         connection_status_changed(bool, str): 连接状态变化 (已连接, 消息)
-        camera_image_ready(np.ndarray): 摄像头图像准备就绪
         simulation_error(str): 仿真错误信息
     """
 
@@ -133,13 +132,12 @@ class CarlaClientManager(QObject):
 
     def set_vehicle_control(self, throttle: float = 0.0, steer: float = 0.0,
                            brake: float = 0.0, hand_brake: bool = False):
-        """设置车辆完整控制
-
+        """
         Args:
             throttle:(0.0 to 1.0)
             steer: (-1.0 to 1.0)
             brake: (0.0 to 1.0)
-            hand_brake
+            hand_brake: bool
         """
         if self.vehicle is not None:
             control = carla.VehicleControl()

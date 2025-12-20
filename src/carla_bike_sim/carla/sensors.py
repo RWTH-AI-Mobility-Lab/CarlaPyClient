@@ -20,11 +20,17 @@ class SensorManager(QObject):
     
     def setup_cameras(self, vehicle: carla.Vehicle, world: carla.World):
         blueprint_library = world.get_blueprint_library()
+        
         camera_bp = blueprint_library.find('sensor.camera.rgb')
         camera_bp.set_attribute('image_size_x', '800')
         camera_bp.set_attribute('image_size_y', '600')
         camera_bp.set_attribute('fov', '90')
-
+        
+        camera_fisheye_bp = blueprint_library.find('sensor.camera.rgb')
+        camera_fisheye_bp.set_attribute('image_size_x', '800')
+        camera_fisheye_bp.set_attribute('image_size_y', '600')
+        camera_fisheye_bp.set_attribute('fov', '160')
+        
         # Front camera
         transform_front = carla.Transform(carla.Location(x=1.5, z=2.4))
         self.front_camera = world.spawn_actor(camera_bp, transform_front, attach_to=vehicle)
@@ -37,15 +43,16 @@ class SensorManager(QObject):
 
         # Left camera
         transform_left = carla.Transform(carla.Location(y=-1.5, z=2.4), carla.Rotation(yaw=-90))
-        self.left_camera = world.spawn_actor(camera_bp, transform_left, attach_to=vehicle)
+        self.left_camera = world.spawn_actor(camera_fisheye_bp, transform_left, attach_to=vehicle)
         self.left_camera.listen(lambda image: self.camera_callback(image, 'left'))
 
         # Right camera
         transform_right = carla.Transform(carla.Location(y=1.5, z=2.4), carla.Rotation(yaw=90))
-        self.right_camera = world.spawn_actor(camera_bp, transform_right, attach_to=vehicle)
+        self.right_camera = world.spawn_actor(camera_fisheye_bp, transform_right, attach_to=vehicle)
         self.right_camera.listen(lambda image: self.camera_callback(image, 'right'))
     
     def destroy_cameras(self):
+        # TODO: bugfix while destroy cams
         if self.front_camera is not None:
             self.front_camera.stop()
             self.front_camera.destroy()
