@@ -8,5 +8,6 @@ dependencies = [
     "numpy>=2.3.5",
     "opencv-python>=4.11.0.86",
     "pyside6>=6.10.1",
-    "carla==0.9.16"
+    "carla==0.9.16",
+    "pygame>=2.6.1",
 ]
