@@ -56,12 +56,33 @@ class MainWindow(QMainWindow):
         self.setStatusBar(status)
 
     def _connect_carla_signals(self):
-        self.carla_manager.connection_status_changed.connect(self._on_connection_status_changed)
-        self.carla_manager.sensor_manager.front_camera_image_ready.connect(self.on_front_camera_image_ready)
-        self.carla_manager.sensor_manager.rear_camera_image_ready.connect(self.on_rear_camera_image_ready)
-        self.carla_manager.sensor_manager.left_camera_image_ready.connect(self.on_left_camera_image_ready)
-        self.carla_manager.sensor_manager.right_camera_image_ready.connect(self.on_right_camera_image_ready)
-        self.carla_manager.simulation_error.connect(self._on_simulation_error)
+        """连接 CARLA 管理器的信号"""
+        # 使用 QueuedConnection 确保跨线程安全
+        # CARLA 的回调在后台线程执行，必须使用队列连接
+        self.carla_manager.connection_status_changed.connect(
+            self._on_connection_status_changed,
+            Qt.ConnectionType.QueuedConnection
+        )
+        self.carla_manager.sensor_manager.front_camera_image_ready.connect(
+            self.on_front_camera_image_ready,
+            Qt.ConnectionType.QueuedConnection
+        )
+        self.carla_manager.sensor_manager.rear_camera_image_ready.connect(
+            self.on_rear_camera_image_ready,
+            Qt.ConnectionType.QueuedConnection
+        )
+        self.carla_manager.sensor_manager.left_camera_image_ready.connect(
+            self.on_left_camera_image_ready,
+            Qt.ConnectionType.QueuedConnection
+        )
+        self.carla_manager.sensor_manager.right_camera_image_ready.connect(
+            self.on_right_camera_image_ready,
+            Qt.ConnectionType.QueuedConnection
+        )
+        self.carla_manager.simulation_error.connect(
+            self._on_simulation_error,
+            Qt.ConnectionType.QueuedConnection
+        )
 
     def _connect_control_signals(self):
         self.control_panel.connect_btn.clicked.connect(self._on_connect)
