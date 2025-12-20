@@ -10,6 +10,8 @@ from carla_bike_sim.gui.central_view import CentralView
 from carla_bike_sim.gui.control_panel import ControlPanel
 from carla_bike_sim.carla.carla_client_manager import CarlaClientManager
 from carla_bike_sim.gui.status_panel import StatusPanel
+from carla_bike_sim.control import ControlInputManager, VehicleControlSignal
+from carla_bike_sim.control.gamepad import GamepadController
 
 
 class MainWindow(QMainWindow):
@@ -21,10 +23,12 @@ class MainWindow(QMainWindow):
         self.control_panel = None
         self.central_view = None
         self.status_panel = None
+        self.control_input_manager = None
 
         self._create_central_view()
         self._create_docks()
         self._create_status_bar()
+        self._setup_control_input()
         self._connect_control_signals()
 
         self.vehicle_update_timer = QTimer()
@@ -54,6 +58,23 @@ class MainWindow(QMainWindow):
         status = QStatusBar()
         status.showMessage("Ready")
         self.setStatusBar(status)
+
+    def _setup_control_input(self):
+        self.control_input_manager = ControlInputManager()
+
+        gamepad_config = {
+            'axis_deadzone': 0.1,
+            'trigger_deadzone': 0.05,
+            'steer_sensitivity': 1.0,
+            'poll_interval': 20,
+        }
+        gamepad_ctrl = GamepadController(gamepad_config)
+        self.control_input_manager.register_controller("gamepad", gamepad_ctrl)
+
+        self.control_input_manager.control_signal.connect(
+            self._on_vehicle_control_signal,
+            Qt.ConnectionType.QueuedConnection
+        )
 
     def _connect_carla_signals(self):
         """连接 CARLA 管理器的信号"""
@@ -120,6 +141,8 @@ class MainWindow(QMainWindow):
                 f"Failed to connect to CARLA server at {host}:{port}.\nPlease ensure CARLA is running."
             )
             self.carla_manager = None
+        
+        self.central_view.show_placeholder("Waiting for simulation start")
 
     def _on_disconnect(self):
         if self.carla_manager is not None:
@@ -179,6 +202,7 @@ class MainWindow(QMainWindow):
             self.control_panel.start_btn.setEnabled(False)
             self.control_panel.stop_btn.setEnabled(True)
             self.vehicle_update_timer.start()
+            self.control_input_manager.switch_controller("gamepad")
         else:
             QMessageBox.warning(
                 self,
@@ -191,8 +215,9 @@ class MainWindow(QMainWindow):
             return
 
         self.statusBar().showMessage("Stopping simulation...")
-        
+
         self.vehicle_update_timer.stop()
+        self.control_input_manager.stop_all()
         self.carla_manager.stop_simulation()
 
         self.statusBar().showMessage("Simulation stopped")
@@ -230,8 +255,19 @@ class MainWindow(QMainWindow):
             )
             self.status_panel.update_vehicle_gear(control.gear)
 
+    def _on_vehicle_control_signal(self, control: VehicleControlSignal):
+        if self.carla_manager and self.carla_manager.is_running:
+            self.carla_manager.set_vehicle_control(
+                throttle=control.throttle,
+                steer=control.steer,
+                brake=control.brake,
+                hand_brake=control.hand_brake
+            )
+
     def closeEvent(self, event):
         self.vehicle_update_timer.stop()
+        if self.control_input_manager:
+            self.control_input_manager.stop_all()
         if self.carla_manager is not None:
             self.carla_manager.disconnect()
         event.accept()
