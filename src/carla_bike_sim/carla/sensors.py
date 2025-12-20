@@ -17,14 +17,21 @@ class SensorManager(QObject):
         self.rear_camera: Optional[carla.Sensor] = None
         self.left_camera: Optional[carla.Sensor] = None
         self.right_camera: Optional[carla.Sensor] = None
+        self._destroying = False  # 标志位，防止销毁时回调继续执行
     
     def setup_cameras(self, vehicle: carla.Vehicle, world: carla.World):
         blueprint_library = world.get_blueprint_library()
+        
         camera_bp = blueprint_library.find('sensor.camera.rgb')
         camera_bp.set_attribute('image_size_x', '800')
         camera_bp.set_attribute('image_size_y', '600')
         camera_bp.set_attribute('fov', '90')
-
+        
+        camera_fisheye_bp = blueprint_library.find('sensor.camera.rgb')
+        camera_fisheye_bp.set_attribute('image_size_x', '800')
+        camera_fisheye_bp.set_attribute('image_size_y', '600')
+        camera_fisheye_bp.set_attribute('fov', '160')
+        
         # Front camera
         transform_front = carla.Transform(carla.Location(x=1.5, z=2.4))
         self.front_camera = world.spawn_actor(camera_bp, transform_front, attach_to=vehicle)
@@ -37,35 +44,66 @@ class SensorManager(QObject):
 
         # Left camera
         transform_left = carla.Transform(carla.Location(y=-1.5, z=2.4), carla.Rotation(yaw=-90))
-        self.left_camera = world.spawn_actor(camera_bp, transform_left, attach_to=vehicle)
+        self.left_camera = world.spawn_actor(camera_fisheye_bp, transform_left, attach_to=vehicle)
         self.left_camera.listen(lambda image: self.camera_callback(image, 'left'))
 
         # Right camera
         transform_right = carla.Transform(carla.Location(y=1.5, z=2.4), carla.Rotation(yaw=90))
-        self.right_camera = world.spawn_actor(camera_bp, transform_right, attach_to=vehicle)
+        self.right_camera = world.spawn_actor(camera_fisheye_bp, transform_right, attach_to=vehicle)
         self.right_camera.listen(lambda image: self.camera_callback(image, 'right'))
     
     def destroy_cameras(self):
-        if self.front_camera is not None:
-            self.front_camera.stop()
-            self.front_camera.destroy()
-            self.front_camera = None
-        if self.rear_camera is not None:
-            self.rear_camera.stop()
-            self.rear_camera.destroy()
-            self.rear_camera = None
-        if self.left_camera is not None:
-            self.left_camera.stop()
-            self.left_camera.destroy()
-            self.left_camera = None
-        if self.right_camera is not None:
-            self.right_camera.stop()
-            self.right_camera.destroy()
-            self.right_camera = None
+        """安全地销毁所有摄像头"""
+        # 设置标志位，防止新的回调执行
+        self._destroying = True
+        
+        # 定义所有摄像头及其名称
+        cameras = [
+            ('front', 'front_camera'),
+            ('rear', 'rear_camera'),
+            ('left', 'left_camera'),
+            ('right', 'right_camera')
+        ]
+        
+        # 先停止所有摄像头，防止新回调
+        for name, attr_name in cameras:
+            camera = getattr(self, attr_name)
+            if camera is not None:
+                try:
+                    camera.stop()
+                except Exception as e:
+                    print(f"Error stopping {name} camera: {e}")
+        
+        # 等待一小段时间，让正在执行的回调完成
+        import time
+        time.sleep(0.1)
+        
+        # 然后销毁所有摄像头
+        for name, attr_name in cameras:
+            camera = getattr(self, attr_name)
+            if camera is not None:
+                try:
+                    camera.destroy()
+                except Exception as e:
+                    print(f"Error destroying {name} camera: {e}")
+                finally:
+                    setattr(self, attr_name, None)
+        
+        # 重置标志位
+        self._destroying = False
     
     def camera_callback(self, image: carla.Image, camera_position: str):
+        """摄像头回调函数 - 在 CARLA 后台线程中执行"""
+        # 如果正在销毁，直接返回，避免访问已销毁的对象
+        if self._destroying:
+            return
+        
         try:
             bgr_image = carla_image_to_bgr(image)
+            
+            # 再次检查，防止在图像处理过程中开始销毁
+            if self._destroying:
+                return
 
             if camera_position == 'front':
                 self.front_camera_image_ready.emit(bgr_image)
@@ -76,4 +114,6 @@ class SensorManager(QObject):
             elif camera_position == 'right':
                 self.right_camera_image_ready.emit(bgr_image)
         except Exception as e:
-            print(f"Error in camera callback ({camera_position}): {e}")
+            # 忽略销毁过程中的错误
+            if not self._destroying:
+                print(f"Error in camera callback ({camera_position}): {e}")

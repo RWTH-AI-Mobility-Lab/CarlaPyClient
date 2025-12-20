@@ -15,7 +15,7 @@ class CentralView(QWidget):
 
         layout = QGridLayout()
         layout.setContentsMargins(0, 0, 0, 0)
-        layout.setSpacing(2)  # 设置间距
+        layout.setSpacing(2)
 
         # front, rear, left, right
         layout.addWidget(self.front_label, 0, 0)
@@ -93,9 +93,3 @@ class CentralView(QWidget):
         self.left_label.setText(f"左摄像头\n{message}")
         self.right_label.clear()
         self.right_label.setText(f"右摄像头\n{message}")
-
-    def create_status_placeholder(self):
-        label = QLabel("Simulation Status\nROS: OFF\nFPS: --")
-        label.setAlignment(Qt.AlignTop | Qt.AlignLeft)
-        label.setStyleSheet("padding: 8px;")
-        return label

@@ -1,6 +1,5 @@
 import carla
 import numpy as np
-from PySide6.QtGui import QImage, QPixmap
 
 def carla_image_to_bgr(image: carla.Image) -> np.ndarray:
     """将 CARLA 图像转换为 BGR 格式的 numpy 数组"""
