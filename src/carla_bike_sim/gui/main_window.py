@@ -53,7 +53,10 @@ class MainWindow(QMainWindow):
     def _connect_carla_signals(self):
         """连接 CARLA 管理器的信号"""
         self.carla_manager.connection_status_changed.connect(self._on_connection_status_changed)
-        self.carla_manager.camera_image_ready.connect(self._on_camera_image_ready)
+        self.carla_manager.sensor_manager.front_camera_image_ready.connect(self.on_front_camera_image_ready)
+        self.carla_manager.sensor_manager.rear_camera_image_ready.connect(self.on_rear_camera_image_ready)
+        self.carla_manager.sensor_manager.left_camera_image_ready.connect(self.on_left_camera_image_ready)
+        self.carla_manager.sensor_manager.right_camera_image_ready.connect(self.on_right_camera_image_ready)
         self.carla_manager.simulation_error.connect(self._on_simulation_error)
 
     def _connect_control_signals(self):
@@ -130,9 +133,21 @@ class MainWindow(QMainWindow):
         if not connected:
             self.central_view.show_placeholder("Disconnected from CARLA server")
 
-    def _on_camera_image_ready(self, image_rgb):
-        """处理摄像头图像更新"""
+    def on_front_camera_image_ready(self, image_rgb):
+        """处理前摄像头图像更新"""
         self.central_view.update_front_camera_image(image_rgb)
+
+    def on_rear_camera_image_ready(self, image_rgb):
+        """处理后摄像头图像更新"""
+        self.central_view.update_rear_camera_image(image_rgb)
+
+    def on_left_camera_image_ready(self, image_rgb):
+        """处理左摄像头图像更新"""
+        self.central_view.update_left_camera_image(image_rgb)
+
+    def on_right_camera_image_ready(self, image_rgb):
+        """处理右摄像头图像更新"""
+        self.central_view.update_right_camera_image(image_rgb)
 
     def _on_simulation_error(self, error_message: str):
         """处理仿真错误"""
