@@ -1,5 +1,6 @@
 import carla
 import numpy as np
+import threading
 from typing import Optional, Dict
 from PySide6.QtCore import QObject, Signal
 from carla_bike_sim.carla.image_processor import ImageProcessorWorker
@@ -18,6 +19,7 @@ class SensorManager(QObject):
         self.left_camera: Optional[carla.Sensor] = None
         self.right_camera: Optional[carla.Sensor] = None
         self._destroying = False  # 标志位，防止销毁时回调继续执行
+        self._lock = threading.RLock()
 
         self._image_workers: Dict[str, ImageProcessorWorker] = {}
     
@@ -63,8 +65,8 @@ class SensorManager(QObject):
         setattr(self, f'{camera_name}_camera', camera)
     
     def destroy_cameras(self):
-        # 设置标志位，防止新的回调执行
-        self._destroying = True
+        with self._lock:
+            self._destroying = True
         
         # 定义所有摄像头及其名称
         cameras = [
@@ -103,11 +105,13 @@ class SensorManager(QObject):
 
         self._image_workers.clear()
 
-        self._destroying = False
+        with self._lock:
+            self._destroying = False
     
     def _camera_callback(self, image: carla.Image, camera_name: str):
-        if self._destroying:
-            return
+        with self._lock:
+            if self._destroying:
+                return
 
         worker = self._image_workers.get(camera_name)
         if worker is None:
@@ -116,8 +120,9 @@ class SensorManager(QObject):
         try:
             worker.enqueue_image(image)
         except Exception as e:
-            if not self._destroying:
-                print(f"Error enqueueing image for {camera_name}: {e}")
+            with self._lock:
+                if not self._destroying:
+                    print(f"Error enqueueing image for {camera_name}: {e}")
 
     def get_performance_stats(self) -> dict:
         stats = {}

@@ -4,6 +4,7 @@ import cv2 as cv
 from typing import Optional
 from PySide6.QtCore import QObject, Signal
 from carla_bike_sim.carla.sensors import SensorManager
+from carla_bike_sim.control.vehicle_control_signal import VehicleControlSignal
 
 class CarlaClientManager(QObject):
     connection_status_changed = Signal(bool, str)
@@ -126,6 +127,17 @@ class CarlaClientManager(QObject):
         self.world = None
         self.spectator = None
         self._is_running = False
+        
+    def get_vehicle_control_state(self) -> Optional[VehicleControlSignal]:
+        if self.vehicle is None:
+            return None
+        control = self.vehicle.get_control()
+        return VehicleControlSignal(
+            throttle=control.throttle,
+            brake=control.brake,
+            steer=control.steer,
+            gear=control.gear
+        )
 
     def set_vehicle_control(self, throttle: float = 0.0, steer: float = 0.0,
                            brake: float = 0.0, hand_brake: bool = False):

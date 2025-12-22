@@ -52,7 +52,7 @@ class CentralView(QWidget):
                 QImage.Format_BGR888
             )
 
-            q_image = q_image.copy()
+            # q_image = q_image.copy()
 
             pixmap = QPixmap.fromImage(q_image)
             scaled_pixmap = pixmap.scaled(

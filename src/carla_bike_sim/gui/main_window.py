@@ -247,13 +247,14 @@ class MainWindow(QMainWindow):
             )
 
         if self.carla_manager.vehicle is not None:
-            control = self.carla_manager.vehicle.get_control()
-            self.status_panel.update_vehicle_control(
-                control.throttle,
-                control.brake,
-                control.steer
-            )
-            self.status_panel.update_vehicle_gear(control.gear)
+            control = self.carla_manager.get_vehicle_control_state()
+            if control is not None:
+                self.status_panel.update_vehicle_control(
+                    control.throttle,
+                    control.brake,
+                    control.steer
+                )
+                self.status_panel.update_vehicle_gear(control.gear)
 
     def _on_vehicle_control_signal(self, control: VehicleControlSignal):
         if self.carla_manager and self.carla_manager.is_running:

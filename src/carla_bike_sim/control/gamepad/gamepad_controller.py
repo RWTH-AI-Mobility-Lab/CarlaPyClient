@@ -1,6 +1,5 @@
-import time
 import pygame
-from typing import Optional
+from typing import Optional, Dict
 from PySide6.QtCore import QThread, Signal
 
 
@@ -8,7 +7,13 @@ from ..base_controller import BaseController
 from ..vehicle_control_signal import VehicleControlSignal
 
 
-class GamepadPollingThread(QThread):
+class GamepadEventThread(QThread):
+    """
+    事件驱动的游戏手柄线程
+
+    使用 pygame 的事件系统而不是轮询，大幅降低 CPU 占用。
+    只在手柄状态实际变化时才处理和发送信号。
+    """
     control_updated = Signal(VehicleControlSignal)
     error_occurred = Signal(str)
 
@@ -21,7 +26,6 @@ class GamepadPollingThread(QThread):
         self.axis_deadzone = config.get('axis_deadzone', 0.1)
         self.trigger_deadzone = config.get('trigger_deadzone', 0.05)
         self.steer_sensitivity = config.get('steer_sensitivity', 1.0)
-        self.poll_interval = config.get('poll_interval', 20) / 1000.0
 
         self.axis_left_x = config.get('axis_left_x', 0)
         self.axis_left_y = config.get('axis_left_y', 1)
@@ -30,6 +34,9 @@ class GamepadPollingThread(QThread):
 
         self.button_a = config.get('button_a', 0)
         self.button_hand_brake = config.get('button_hand_brake', 0)
+
+        self.current_axies: Dict[int, float] = {}
+        self.current_buttons: Dict[int, bool] = {}
 
     def run(self):
         try:
@@ -40,17 +47,29 @@ class GamepadPollingThread(QThread):
             if not self._connect_joystick():
                 return
 
+            self._initialize_state()
+
             self.running = True
             while self.running:
                 try:
-                    pygame.event.pump()
-                    control_signal = self._read_control_signal()
-                    self.control_updated.emit(control_signal)
-                    time.sleep(self.poll_interval)
+                    for event in pygame.event.get():
+                        if event.type == pygame.JOYAXISMOTION:
+                            print(event.axis, event.value, event.type)
+                            self._handle_axis_motion(event)
+                        elif event.type == pygame.JOYBUTTONDOWN:
+                            self._handle_button_down(event)
+                        elif event.type == pygame.JOYBUTTONUP:
+                            self._handle_button_up(event)
+                        elif event.type == pygame.JOYDEVICEREMOVED:
+                            self.error_occurred.emit("手柄已断开连接")
+                            self.running = False
+                            break
+
+                    if self.running:
+                        pygame.time.wait(10)  # 10ms 等待避免完全阻塞
 
                 except Exception as e:
                     self.error_occurred.emit(f"读取手柄数据错误: {str(e)}")
-                    # time.sleep(0.1)
 
         except Exception as e:
             self.error_occurred.emit(f"手柄线程错误: {str(e)}")
@@ -60,6 +79,7 @@ class GamepadPollingThread(QThread):
 
     def stop(self):
         self.running = False
+        pygame.event.post(pygame.event.Event(pygame.USEREVENT))
 
     def _connect_joystick(self) -> bool:
         joystick_count = pygame.joystick.get_count()
@@ -83,14 +103,46 @@ class GamepadPollingThread(QThread):
             self.error_occurred.emit(f"连接手柄失败: {str(e)}")
             return False
 
-    def _read_control_signal(self) -> VehicleControlSignal:
+    def _initialize_state(self):
         if not self.joystick:
-            return VehicleControlSignal()
+            return
 
+        for i in range(self.joystick.get_numaxes()):
+            self.current_axies[i] = self.joystick.get_axis(i)
+
+        for i in range(self.joystick.get_numbuttons()):
+            self.current_buttons[i] = self.joystick.get_button(i) == 1
+
+        self._emit_current_control()
+
+    def _handle_axis_motion(self, event):
+        axis_id = event.axis
+        raw_value = event.value
+
+        self.current_axies[axis_id] = raw_value
+
+        if axis_id in [self.axis_left_x, self.axis_rt, self.axis_lt]:
+            self._emit_current_control()
+
+    def _handle_button_down(self, event):
+        button_id = event.button
+        self.current_buttons[button_id] = True
+
+        if button_id == self.button_hand_brake:
+            self._emit_current_control()
+
+    def _handle_button_up(self, event):
+        button_id = event.button
+        self.current_buttons[button_id] = False
+
+        if button_id == self.button_hand_brake:
+            self._emit_current_control()
+
+    def _emit_current_control(self):
         throttle = self._get_trigger_value(self.axis_rt)
         brake = self._get_trigger_value(self.axis_lt)
         steer = self._get_axis_value(self.axis_left_x)
-        hand_brake = self._get_button_state(self.button_hand_brake)
+        hand_brake = self.current_buttons.get(self.button_hand_brake, False)
 
         steer *= self.steer_sensitivity
 
@@ -102,30 +154,18 @@ class GamepadPollingThread(QThread):
         )
         control.clamp()
 
-        return control
+        self.control_updated.emit(control)
 
     def _get_axis_value(self, axis_id: int) -> float:
-        if not self.joystick or axis_id >= self.joystick.get_numaxes():
-            return 0.0
-
-        raw_value = self.joystick.get_axis(axis_id)
+        raw_value = self.current_axies.get(axis_id, 0.0)
         return self._apply_deadzone(raw_value, self.axis_deadzone)
 
     def _get_trigger_value(self, axis_id: int) -> float:
-        if not self.joystick or axis_id >= self.joystick.get_numaxes():
-            return 0.0
-
-        raw_value = self.joystick.get_axis(axis_id)
+        raw_value = self.current_axies.get(axis_id, 0.0)
         # 有些手柄扳机是 [-1, 1]，有些是 [0, 1]
         # 统一映射到 [0, 1]
         normalized = (raw_value + 1.0) / 2.0
         return self._apply_deadzone(normalized, self.trigger_deadzone)
-
-    def _get_button_state(self, button_id: int) -> bool:
-        if not self.joystick or button_id >= self.joystick.get_numbuttons():
-            return False
-
-        return self.joystick.get_button(button_id) == 1
 
     def _apply_deadzone(self, value: float, deadzone: float) -> float:
         if abs(value) < deadzone:
@@ -139,22 +179,24 @@ class GamepadPollingThread(QThread):
         if self.joystick:
             try:
                 self.joystick.quit()
-            except:
-                pass
-            self.joystick = None
+            except pygame.error as e:
+                print("Failed to quit joystick: %s", e)
+            except Exception as e:
+                print("Unexpected error: %s", e, exc_info=True)
+                self.joystick = None
 
 
 class GamepadController(BaseController):
     """
-    游戏手柄控制器
+    游戏手柄控制器 (事件驱动版本)
 
-    使用独立线程轮询游戏手柄输入，支持 Xbox、PlayStation 等标准手柄。
+    使用事件驱动方式处理游戏手柄输入，相比轮询模式大幅降低 CPU 占用。
+    支持 Xbox、PlayStation 等标准手柄。
 
     配置项:
         axis_deadzone (float): 摇杆死区，默认 0.1
         trigger_deadzone (float): 扳机死区，默认 0.05
         steer_sensitivity (float): 转向灵敏度，默认 1.0
-        poll_interval (int): 轮询间隔（毫秒），默认 20ms
         axis_left_x (int): 左摇杆 X 轴编号，默认 0
         axis_left_y (int): 左摇杆 Y 轴编号，默认 1
         axis_rt (int): 右扳机轴编号，默认 5
@@ -171,7 +213,7 @@ class GamepadController(BaseController):
 
     def __init__(self, config: dict = None):
         super().__init__(config)
-        self.polling_thread: Optional[GamepadPollingThread] = None
+        self.event_thread: Optional[GamepadEventThread] = None
 
 
     def start(self) -> bool:
@@ -180,12 +222,12 @@ class GamepadController(BaseController):
             return True
 
         try:
-            self.polling_thread = GamepadPollingThread(self.config)
+            self.event_thread = GamepadEventThread(self.config)
 
-            self.polling_thread.control_updated.connect(self._on_control_updated)
-            self.polling_thread.error_occurred.connect(self._on_thread_error)
+            self.event_thread.control_updated.connect(self._on_control_updated)
+            self.event_thread.error_occurred.connect(self._on_thread_error)
 
-            self.polling_thread.start()
+            self.event_thread.start()
 
             self._is_running = True
             self._emit_status_change(True, "游戏手柄控制器已启动")
@@ -203,14 +245,14 @@ class GamepadController(BaseController):
             return
 
         try:
-            if self.polling_thread:
-                self.polling_thread.stop()
-                self.polling_thread.wait()
+            if self.event_thread:
+                self.event_thread.stop()
+                self.event_thread.wait()
 
-                self.polling_thread.control_updated.disconnect()
-                self.polling_thread.error_occurred.disconnect()
+                self.event_thread.control_updated.disconnect()
+                self.event_thread.error_occurred.disconnect()
 
-                self.polling_thread = None
+                self.event_thread = None
 
             self._is_running = False
 

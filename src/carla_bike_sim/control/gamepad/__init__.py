@@ -3,9 +3,9 @@
 
 提供游戏手柄输入支持，包括 Xbox、PlayStation 等标准手柄。
 """
-from .gamepad_controller import GamepadController, GamepadPollingThread
+from .gamepad_controller import GamepadController, GamepadEventThread
 
 __all__ = [
     'GamepadController',
-    'GamepadPollingThread',
+    'GamepadEventThread',
 ]
