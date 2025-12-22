@@ -83,6 +83,10 @@ class CarlaClientManager(QObject):
             if map_name is None:
                 map_name = self.client.get_available_maps()[0]
             self.world = self.client.load_world(map_name)
+            
+            settings = self.world.get_settings()
+            print("sync:", settings.synchronous_mode)
+            print("fixed_dt:", settings.fixed_delta_seconds)
 
             bp = self.world.get_blueprint_library().find(vehicle_blueprint)
             spawn_point = self.world.get_map().get_spawn_points()[0]
