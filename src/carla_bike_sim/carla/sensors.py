@@ -38,19 +38,19 @@ class SensorManager(QObject):
         self.front_camera.listen(lambda image: self.camera_callback(image, 'front'))
 
         # Rear camera
-        transform_rear = carla.Transform(carla.Location(x=-1.5, z=2.4), carla.Rotation(yaw=180))
-        self.rear_camera = world.spawn_actor(camera_bp, transform_rear, attach_to=vehicle)
-        self.rear_camera.listen(lambda image: self.camera_callback(image, 'rear'))
+        # transform_rear = carla.Transform(carla.Location(x=-1.5, z=2.4), carla.Rotation(yaw=180))
+        # self.rear_camera = world.spawn_actor(camera_bp, transform_rear, attach_to=vehicle)
+        # self.rear_camera.listen(lambda image: self.camera_callback(image, 'rear'))
 
-        # Left camera
-        transform_left = carla.Transform(carla.Location(y=-1.5, z=2.4), carla.Rotation(yaw=-90))
-        self.left_camera = world.spawn_actor(camera_fisheye_bp, transform_left, attach_to=vehicle)
-        self.left_camera.listen(lambda image: self.camera_callback(image, 'left'))
+        # # Left camera
+        # transform_left = carla.Transform(carla.Location(y=-1.5, z=2.4), carla.Rotation(yaw=-90))
+        # self.left_camera = world.spawn_actor(camera_fisheye_bp, transform_left, attach_to=vehicle)
+        # self.left_camera.listen(lambda image: self.camera_callback(image, 'left'))
 
-        # Right camera
-        transform_right = carla.Transform(carla.Location(y=1.5, z=2.4), carla.Rotation(yaw=90))
-        self.right_camera = world.spawn_actor(camera_fisheye_bp, transform_right, attach_to=vehicle)
-        self.right_camera.listen(lambda image: self.camera_callback(image, 'right'))
+        # # Right camera
+        # transform_right = carla.Transform(carla.Location(y=1.5, z=2.4), carla.Rotation(yaw=90))
+        # self.right_camera = world.spawn_actor(camera_fisheye_bp, transform_right, attach_to=vehicle)
+        # self.right_camera.listen(lambda image: self.camera_callback(image, 'right'))
     
     def destroy_cameras(self):
         """安全地销毁所有摄像头"""
