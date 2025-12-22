@@ -6,22 +6,6 @@ from .vehicle_control_signal import VehicleControlSignal
 
 
 class ControlInputManager(QObject):
-    """
-    控制输入管理器
-
-    负责管理多个控制器实例，处理控制模式切换，并将活动控制器的信号转发给上层。
-    确保在任意时刻只有一个控制器处于活动状态。
-
-    Signals:
-        control_signal(VehicleControlSignal): 当前活动控制器的控制信号
-        active_controller_changed(str): 活动控制器改变时发出，参数为新控制器名称
-        controller_error(str, str): 控制器错误信号，参数为(控制器名称, 错误消息)
-        controller_status_changed(str, bool, str): 控制器状态改变信号
-            - 参数1: 控制器名称
-            - 参数2: True表示已连接，False表示已断开
-            - 参数3: 状态描述信息
-    """
-
     control_signal = Signal(VehicleControlSignal)
     active_controller_changed = Signal(str)
     controller_error = Signal(str, str)

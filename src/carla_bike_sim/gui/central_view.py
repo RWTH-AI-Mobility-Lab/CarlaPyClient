@@ -8,10 +8,10 @@ class CentralView(QWidget):
     def __init__(self):
         super().__init__()
 
-        self.front_label = self._create_camera_label("前摄像头\n(等待连接...)")
-        self.rear_label = self._create_camera_label("后摄像头\n(等待连接...)")
-        self.left_label = self._create_camera_label("左摄像头\n(等待连接...)")
-        self.right_label = self._create_camera_label("右摄像头\n(等待连接...)")
+        self.front_label = self._create_camera_label("前摄像头\n(Waiting for connection...)")
+        self.rear_label = self._create_camera_label("后摄像头\n(Waiting for connection...)")
+        self.left_label = self._create_camera_label("左摄像头\n(Waiting for connection...)")
+        self.right_label = self._create_camera_label("右摄像头\n(Waiting for connection...)")
 
         layout = QGridLayout()
         layout.setContentsMargins(0, 0, 0, 0)
@@ -36,12 +36,6 @@ class CentralView(QWidget):
         return label
 
     def _update_camera_image(self, label: QLabel, image_bgr: np.ndarray):
-        """通用的摄像头图像更新方法
-
-        Args:
-            label: 要更新的QLabel
-            image_bgr: BGR 格式的图像数据 (numpy array)
-        """
         try:
             if not image_bgr.flags['C_CONTIGUOUS']:
                 image_bgr = np.ascontiguousarray(image_bgr)

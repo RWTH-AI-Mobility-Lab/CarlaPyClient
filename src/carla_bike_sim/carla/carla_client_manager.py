@@ -6,13 +6,6 @@ from PySide6.QtCore import QObject, Signal
 from carla_bike_sim.carla.sensors import SensorManager
 
 class CarlaClientManager(QObject):
-    """CARLA 客户端管理器
-
-    Signals:
-        connection_status_changed(bool, str): 连接状态变化 (已连接, 消息)
-        simulation_error(str): 仿真错误信息
-    """
-
     connection_status_changed = Signal(bool, str)
     simulation_error = Signal(str)
 
