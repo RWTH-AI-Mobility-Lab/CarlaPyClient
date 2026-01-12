@@ -3,14 +3,14 @@ import numpy as np
 import cv2 as cv
 from typing import Optional
 from PySide6.QtCore import QObject, Signal
-from carla_bike_sim.carla.sensors import SensorManager
+from carla_bike_sim.carla.sensor_manager import SensorManager
 from carla_bike_sim.control.vehicle_control_signal import VehicleControlSignal
 
 class CarlaClientManager(QObject):
     connection_status_changed = Signal(bool, str)
     simulation_error = Signal(str)
 
-    def __init__(self, host: str = 'localhost', port: int = 2000, timeout: float = 5.0):
+    def __init__(self, host: str = 'localhost', port: int = 2000, timeout: float = 10.0):
         super().__init__()
         self.host = host
         self.port = port

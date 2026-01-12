@@ -76,7 +76,6 @@ class SensorManager(QObject):
             ('right', 'right_camera')
         ]
 
-        # 1. 先停止所有摄像头的数据采集
         for name, attr_name in cameras:
             camera = getattr(self, attr_name)
             if camera is not None:
@@ -85,14 +84,12 @@ class SensorManager(QObject):
                 except Exception as e:
                     print(f"Error stopping {name} camera: {e}")
 
-        # 2. 停止所有图像处理工作线程
         for name, worker in self._image_workers.items():
             try:
                 worker.stop()
             except Exception as e:
                 print(f"Error stopping {name} worker: {e}")
 
-        # 3. 销毁所有摄像头
         for name, attr_name in cameras:
             camera = getattr(self, attr_name)
             if camera is not None:
